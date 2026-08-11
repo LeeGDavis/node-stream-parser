@@ -1,25 +1,23 @@
 
-/**
- * Module dependencies.
- */
+import assert from 'assert';
+import { debuglog } from 'util';
 
-var assert = require('assert');
-var debug = require('debug')('stream-parser');
+const log = debuglog('stream-parser');
 
 /**
  * Module exports.
  */
 
-module.exports = Parser;
+export default Parser;
 
 /**
  * Parser states.
  */
 
-var INIT        = -1;
-var BUFFERING   = 0;
-var SKIPPING    = 1;
-var PASSTHROUGH = 2;
+const INIT        = -1;
+const BUFFERING   = 0;
+const SKIPPING    = 1;
+const PASSTHROUGH = 2;
 
 /**
  * The `Parser` stream mixin works with either `Writable` or `Transform` stream
@@ -42,7 +40,7 @@ function Parser (stream) {
   var isWritable = stream && 'function' == typeof stream._write;
 
   if (!isTransform && !isWritable) throw new Error('must pass a Writable or Transform stream in');
-  debug('extending Parser into stream');
+  log('extending Parser into stream');
 
   // Transform streams and Writable streams get `_bytes()` and `_skipBytes()`
   stream._bytes = _bytes;
@@ -51,7 +49,7 @@ function Parser (stream) {
   // only Transform streams get the `_passthrough()` function
   if (isTransform) stream._passthrough = _passthrough;
 
-  // take control of the streams2 callback functions for this stream
+  // take control of the stream's callback functions for this stream
   if (isTransform) {
     stream._transform = transform;
   } else {
@@ -60,7 +58,7 @@ function Parser (stream) {
 }
 
 function init (stream) {
-  debug('initializing parser stream');
+  log('initializing parser stream');
 
   // number of bytes left to parser for the next "chunk"
   stream._parserBytesLeft = 0;
@@ -77,11 +75,6 @@ function init (stream) {
   // the callback for the next "chunk"
   stream._parserCallback = null;
 
-  // XXX: backwards compat with the old Transform API... remove at some point..
-  if ('function' == typeof stream.push) {
-    stream._parserOutput = stream.push.bind(stream);
-  }
-
   stream._parserInit = true;
 }
 
@@ -97,7 +90,7 @@ function _bytes (n, fn) {
   assert(!this._parserCallback, 'there is already a "callback" set!');
   assert(isFinite(n) && n > 0, 'can only buffer a finite number of bytes > 0, got "' + n + '"');
   if (!this._parserInit) init(this);
-  debug('buffering %o bytes', n);
+  log('buffering %o bytes', n);
   this._parserBytesLeft = n;
   this._parserCallback = fn;
   this._parserState = BUFFERING;
@@ -116,7 +109,7 @@ function _skipBytes (n, fn) {
   assert(!this._parserCallback, 'there is already a "callback" set!');
   assert(n > 0, 'can only skip > 0 bytes, got "' + n + '"');
   if (!this._parserInit) init(this);
-  debug('skipping %o bytes', n);
+  log('skipping %o bytes', n);
   this._parserBytesLeft = n;
   this._parserCallback = fn;
   this._parserState = SKIPPING;
@@ -135,7 +128,7 @@ function _passthrough (n, fn) {
   assert(!this._parserCallback, 'There is already a "callback" set!');
   assert(n > 0, 'can only pass through > 0 bytes, got "' + n + '"');
   if (!this._parserInit) init(this);
-  debug('passing through %o bytes', n);
+  log('passing through %o bytes', n);
   this._parserBytesLeft = n;
   this._parserCallback = fn;
   this._parserState = PASSTHROUGH;
@@ -149,7 +142,7 @@ function _passthrough (n, fn) {
 
 function write (chunk, encoding, fn) {
   if (!this._parserInit) init(this);
-  debug('write(%o bytes)', chunk.length);
+  log('write(%o bytes)', chunk.length);
 
   // XXX: old Writable stream API compat... remove at some point...
   if ('function' == typeof encoding) fn = encoding;
@@ -166,11 +159,10 @@ function write (chunk, encoding, fn) {
 
 function transform (chunk, output, fn) {
   if (!this._parserInit) init(this);
-  debug('transform(%o bytes)', chunk.length);
+  log('transform(%o bytes)', chunk.length);
 
-  // XXX: old Transform stream API compat... remove at some point...
   if ('function' != typeof output) {
-    output = this._parserOutput;
+    output = this.push.bind(this);
   }
 
   data(this, chunk, output, fn);
@@ -200,7 +192,7 @@ function _data (stream, chunk, output, fn) {
   } else {
     // large buffer needs to be sliced on "_parserBytesLeft" and processed
     return function () {
-      var b = chunk.slice(0, stream._parserBytesLeft);
+      const b = chunk.slice(0, stream._parserBytesLeft);
       return process(stream, b, output, function (err) {
         if (err) return fn(err);
         if (chunk.length > b.length) {
@@ -224,7 +216,7 @@ function _data (stream, chunk, output, fn) {
 
 function process (stream, chunk, output, fn) {
   stream._parserBytesLeft -= chunk.length;
-  debug('%o bytes left for stream piece', stream._parserBytesLeft);
+  log('%o bytes left for stream piece', stream._parserBytesLeft);
 
   if (stream._parserState === BUFFERING) {
     // buffer
@@ -238,7 +230,7 @@ function process (stream, chunk, output, fn) {
 
   if (0 === stream._parserBytesLeft) {
     // done with stream "piece", invoke the callback
-    var cb = stream._parserCallback;
+    let cb = stream._parserCallback;
     if (cb && stream._parserState === BUFFERING && stream._parserBuffers.length > 1) {
       chunk = Buffer.concat(stream._parserBuffers, stream._parserBuffered);
     }
@@ -251,7 +243,7 @@ function process (stream, chunk, output, fn) {
     stream._parserBuffers.splice(0); // empty
 
     if (cb) {
-      var args = [];
+      const args = [];
       if (chunk) {
         // buffered
         args.push(chunk);
@@ -262,12 +254,12 @@ function process (stream, chunk, output, fn) {
         // on a Transform stream, has "output" function
         args.push(output);
       }
-      var async = cb.length > args.length;
+      const async = cb.length > args.length;
       if (async) {
         args.push(trampoline(fn));
       }
       // invoke cb
-      var rtn = cb.apply(stream, args);
+      const rtn = cb.apply(stream, args);
       if (!async || fn === rtn) return fn;
     }
   } else {
@@ -276,12 +268,12 @@ function process (stream, chunk, output, fn) {
   }
 }
 
-var data = trampoline(_data);
+const data = trampoline(_data);
 
 /**
  * Generic thunk-based "trampoline" helper function.
  *
- * @param {Function} input function
+ * @param {Function} fn function
  * @return {Function} "trampolined" function
  * @api private
  */

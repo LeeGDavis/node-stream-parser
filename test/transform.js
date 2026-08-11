@@ -1,52 +1,48 @@
-
 /**
  * Module dependencies.
  */
 
-var assert = require('assert');
-var Parser = require('../');
-var Transform = require('stream').Transform;
-
-// for node v0.6.x-v0.8.x support
-if (!Transform) Transform = require('readable-stream/transform');
+import assert from 'assert';
+import Parser from '../index.js';
+import { Transform } from 'stream';
 
 describe('Transform stream', function () {
 
   it('should have the `_bytes()` function', function () {
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
     assert.equal('function', typeof t._bytes);
   });
 
   it('should have the `_skipBytes()` function', function () {
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
     assert.equal('function', typeof t._skipBytes);
   });
 
   it('should have the `_passthrough()` function', function () {
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
     assert.equal('function', typeof t._passthrough);
   });
 
   it('should read 2 bytes, pass through 2 bytes', function (done) {
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
-    var gotBytes = false;
-    var gotPassthrough = false;
-    var gotData = false;
+    let gotBytes = false;
+    let gotPassthrough = false;
+    let gotData = false;
 
     // read 2 bytes
     t._bytes(2, read);
-    function read (chunk, output) {
+    function read (chunk, /*output*/) {
       assert.equal(2, chunk.length);
       assert.equal(0, chunk[0]);
       assert.equal(1, chunk[1]);
       gotBytes = true;
       t._passthrough(2, passthrough);
     }
-    function passthrough (output) {
+    function passthrough (/*output*/) {
       gotPassthrough = true;
     }
 
@@ -64,14 +60,14 @@ describe('Transform stream', function () {
       done();
     });
 
-    t.end(new Buffer([ 0, 1, 2, 3 ]));
+    t.end(Buffer.from([ 0, 1, 2, 3 ]));
   });
 
   it('should allow you to pass through Infinity bytes', function (done) {
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
     t._passthrough(Infinity);
-    var out = [];
+    const out = [];
     t.on('data', function (data) {
       out.push(data);
     });
@@ -84,7 +80,7 @@ describe('Transform stream', function () {
 
   it('should *not* allow you to buffer Infinity bytes', function () {
     // buffering to Infinity would just be silly...
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
     assert.throws(function () {
       t._bytes(Infinity);
@@ -96,10 +92,10 @@ describe('Transform stream', function () {
     this.test.slow(500);
     this.test.timeout(1000);
 
-    var t = new Transform();
+    const t = new Transform();
     Parser(t);
 
-    var bytes = 65536;
+    let bytes = 65536;
     t._bytes(1, read);
     function read() {
       // Any downstream pipe consumer (writable) which doesn't do any async actions.
@@ -111,7 +107,7 @@ describe('Transform stream', function () {
       }
     }
 
-    var b = new Buffer(bytes);
+    const b = Buffer.alloc(bytes);
     b.fill('h');
     t.end(b);
   });
@@ -119,8 +115,8 @@ describe('Transform stream', function () {
   describe('async', function () {
 
     it('should accept a callback function for `_passthrough()`', function (done) {
-      var t = new Transform();
-      var data = 'test', _data;
+      const t = new Transform();
+      let data = 'test', _data;
       Parser(t);
       t._passthrough(data.length, function (output, fn) {
         setTimeout(fn, 25);
@@ -138,8 +134,8 @@ describe('Transform stream', function () {
     });
 
     it('should accept a callback function for `_bytes()`', function (done) {
-      var t = new Transform();
-      var data = 'test';
+      const t = new Transform();
+      const data = 'test';
       Parser(t);
       t._bytes(data.length, function (chunk, output, fn) {
         setTimeout(fn, 25);
@@ -153,15 +149,15 @@ describe('Transform stream', function () {
     });
 
     it('should work switching between async and sync callbacks', function (done) {
-      var firstCalled, secondCalled, thirdCalled;
+      let firstCalled, secondCalled, thirdCalled;
 
       // create a 6 byte Buffer. The first 4 will be the int
       // `1337`. The last 2 will be whatever...
-      var val = 1337;
-      var buf = new Buffer(6);
+      const val = 1337;
+      const buf = Buffer.alloc(6);
       buf.writeUInt32LE(val, 0);
 
-      var t = new Transform();
+      const t = new Transform();
       Parser(t);
 
       // first read 4 bytes, with an async callback

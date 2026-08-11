@@ -1,4 +1,16 @@
 
+1.0.0 / 2026-08-11
+==================
+
+  * Convert to ES modules (ESM)
+  * Drop support for Node < 18
+  * Remove "readable-stream" dependency (use native Node.js streams)
+  * Replace "debug" with native util.debuglog() (zero dependencies)
+  * Update "mocha" to ^12.0.0-rc
+  * Modernize code: const/let, Buffer.from/Buffer.alloc
+  * Add explicit "exports" field to package.json
+  * Remove old Transform API compatibility code
+
 0.3.1 / 2015-06-04
 ==================
 
